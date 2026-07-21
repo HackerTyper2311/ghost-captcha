@@ -1,0 +1,12 @@
+{
+  "sites": [
+    {
+      "sitekey": "pephFHMYg6pN1PtMb-dJTQ",
+      "secret": "KKHz7k-gCm3fFkUzX4vCIELkOHG9nkitbR31LEDjF-U",
+      "origins": [
+        "http://localhost:5000",
+        "http://127.0.0.1:5000"
+      ]
+    }
+  ]
+}
