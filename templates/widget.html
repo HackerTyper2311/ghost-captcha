@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="{{ lang or 'en' }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAPTCHA</title>
+  <style>
+    :root {
+      --bg: #f9f9f9;
+      --text: #222;
+      --muted: #555;
+      --border: #d3d3d3;
+      --border-hover: #a8a8a8;
+      --accent: #1a73e8;
+      --error: #c51818;
+      --success: #137333;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 10px;
+    }
+
+    .gc-box {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      padding: 18px;
+    }
+
+    .gc-title {
+      font-size: 1.15rem;
+      color: var(--text);
+      margin: 0 0 4px;
+      font-weight: 500;
+    }
+
+    .gc-subtitle {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+
+    .video-wrap {
+      position: relative;
+      display: block;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      background: #000;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #000;
+    }
+
+    .gc-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .gc-input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text);
+      outline: none;
+    }
+    .gc-input:focus {
+      border-color: var(--border-hover);
+    }
+    .gc-input:disabled {
+      background: #f2f2f2;
+    }
+
+    button {
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    button:disabled { opacity: 0.55; cursor: default; }
+
+    .btn-refresh {
+      background: #fff;
+      color: var(--muted);
+      border-color: var(--border);
+      white-space: nowrap;
+    }
+    .btn-refresh:hover:not(:disabled) {
+      border-color: var(--border-hover);
+      background: #f7f7f7;
+    }
+
+    .btn-verify {
+      width: 100%;
+      display: block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      padding: 12px 22px;
+      margin-top: 10px;
+    }
+    .btn-verify:hover:not(:disabled) {
+      background: #1557b5;
+    }
+
+    .gc-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .gc-links {
+      font-size: 0.75rem;
+      color: #9e9e9e;
+      line-height: 1.4;
+    }
+
+    .message {
+      min-height: 1.4rem;
+      margin-top: 12px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .message.error { color: var(--error); }
+    .message.success { color: var(--success); }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: -2px;
+      margin-right: 5px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main class="gc-box">
+    <p class="gc-title">Verify you're human</p>
+    <p class="gc-subtitle">Watch the video, then enter the 4-letter code.</p>
+
+    <div class="video-wrap" id="videoWrap" title="Click to refresh">
+      <video id="captchaVideo" autoplay loop muted playsinline
+             aria-label="CAPTCHA video"></video>
+    </div>
+
+    <div class="gc-row">
+      <input type="text" id="captchaInput" class="gc-input" maxlength="4"
+             autocomplete="off" spellcheck="false" autocapitalize="characters"
+             placeholder="Enter code" aria-label="CAPTCHA input" disabled />
+      <button type="button" class="btn-refresh" id="refreshBtn" title="Refresh">&#x21bb; Refresh</button>
+    </div>
+
+    <button type="button" class="btn-verify" id="verifyBtn">Verify</button>
+
+    <div class="message" id="message" aria-live="polite"></div>
+
+    <div class="gc-footer">
+      <div class="gc-links">protected by Ghost Captcha</div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var video = document.getElementById('captchaVideo');
+      var input = document.getElementById('captchaInput');
+      var message = document.getElementById('message');
+      var refreshBtn = document.getElementById('refreshBtn');
+      var verifyBtn = document.getElementById('verifyBtn');
+      var videoWrap = document.getElementById('videoWrap');
+
+      var ORIGIN = {{ origin|tojson }};
+      var CHALLENGE_URL = "/api/captcha/challenge?origin=" + encodeURIComponent(ORIGIN);
+      var VERIFY_URL = "/api/captcha/verify";
+
+      var currentVideoUrl = null;
+      var currentChallengeId = null;
+      var busy = false;
+
+      function postToParent(type, payload) {
+        payload = payload || {};
+        payload.type = type;
+        if (!ORIGIN) return;
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(payload, ORIGIN);
+        }
+      }
+
+      function setMessage(text, kind) {
+        message.textContent = text;
+        message.className = 'message' + (kind ? ' ' + kind : '');
+      }
+
+      function setLoading(loading) {
+        busy = loading;
+        verifyBtn.disabled = loading;
+        refreshBtn.disabled = loading;
+        input.disabled = loading;
+      }
+
+      function revokeVideo() {
+        if (currentVideoUrl) {
+          URL.revokeObjectURL(currentVideoUrl);
+          currentVideoUrl = null;
+        }
+      }
+
+      async function regenerate() {
+        if (busy) return;
+        setLoading(true);
+        setMessage('');
+        input.value = '';
+        currentChallengeId = null;
+        revokeVideo();
+
+        try {
+          var res = await fetch(CHALLENGE_URL, { method: 'GET', credentials: 'omit' });
+          if (res.status === 429) {
+            setMessage('Too many attempts. Please wait.', 'error');
+            setLoading(false);
+            return;
+          }
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          var data = await res.json();
+          currentChallengeId = data.challenge_id;
+
+          var videoRes = await fetch(data.video_url, { method: 'GET', credentials: 'omit' });
+          if (!videoRes.ok) throw new Error('video HTTP ' + videoRes.status);
+          var blob = await videoRes.blob();
+          currentVideoUrl = URL.createObjectURL(blob);
+          video.src = currentVideoUrl;
+          video.play().catch(function () {});
+        } catch (err) {
+          setMessage('Could not load CAPTCHA.', 'error');
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function verify() {
+        var value = input.value.trim().toUpperCase();
+        if (!value) {
+          setMessage('Please enter the code.', 'error');
+          return;
+        }
+        if (!currentChallengeId) {
+          setMessage('CAPTCHA not loaded. Refresh.', 'error');
+          return;
+        }
+        if (busy) return;
+        setLoading(true);
+        setMessage('');
+        verifyBtn.innerHTML = '<span class="spinner"></span>Verifying';
+
+        try {
+          var res = await fetch(VERIFY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'omit',
+            body: JSON.stringify({
+              origin: ORIGIN,
+              challenge_id: currentChallengeId,
+              code: value
+            })
+          });
+          var data = await res.json();
+          currentChallengeId = null;
+
+          if (res.ok && data.success && data.token) {
+            setMessage('Verified', 'success');
+            verifyBtn.innerHTML = 'Verify';
+            postToParent('ghost-captcha-token', { token: data.token });
+            revokeVideo();
+          } else {
+            setMessage(data.message || 'Incorrect code. Try again.', 'error');
+            verifyBtn.innerHTML = 'Verify';
+            await regenerate();
+          }
+        } catch (err) {
+          setMessage('Verification failed.', 'error');
+          verifyBtn.innerHTML = 'Verify';
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      refreshBtn.addEventListener('click', function () {
+        verifyBtn.innerHTML = 'Verify';
+        regenerate();
+      });
+      videoWrap.addEventListener('click', function () {
+        verifyBtn.innerHTML = 'Verify';
+        regenerate();
+      });
+      verifyBtn.addEventListener('click', verify);
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); verify(); }
+      });
+
+      window.addEventListener('message', function (event) {
+        if (event.data && event.data.type === 'ghost-captcha-reset') {
+          verifyBtn.innerHTML = 'Verify';
+          regenerate();
+        }
+      });
+
+      regenerate();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ghost Font CAPTCHA - Demo</title>
+  <script src="{{ api_js_url }}" async defer></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f9f9f9;
+      color: #222;
+      font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 1rem;
+    }
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 400;
+      color: #222;
+    }
+    header p { margin: 0.25rem 0 0; color: #555; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #d3d3d3;
+      border-radius: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #222;
+    }
+    .card p {
+      margin: 0 0 1rem;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    .form-field { margin-bottom: 1rem; }
+    .form-field label {
+      display: block;
+      font-size: 0.85rem;
+      color: #555;
+      margin-bottom: 0.25rem;
+    }
+    .form-field input[type="email"] {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid #d3d3d3;
+      border-radius: 2px;
+      font-size: 0.95rem;
+      color: #222;
+      outline: none;
+    }
+    .form-field input[type="email"]:focus { border-color: #a8a8a8; }
+
+    .widget-slot { margin: 1rem 0; min-height: 120px; }
+
+    button.submit {
+      width: 100%;
+      cursor: pointer;
+      border: none;
+      border-radius: 2px;
+      padding: 0.75rem;
+      font-weight: 500;
+      font-size: 0.95rem;
+      background: #1a73e8;
+      color: #fff;
+      transition: background 0.15s ease;
+    }
+    button.submit:hover:not(:disabled) { background: #1557b5; }
+    button.submit:disabled { opacity: 0.55; cursor: default; }
+
+    .result {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 2px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      min-height: 1.2rem;
+      word-break: break-all;
+    }
+    .result.success { background: #e6f4ea; color: #137333; border: 1px solid #b7e1c4; }
+    .result.error { background: #fce8e8; color: #c51818; border: 1px solid #f1b6b6; }
+    .result code { color: #1a73e8; font-family: 'Consolas','Courier New',monospace; }
+
+    pre.code {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 2px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Consolas','Courier New',monospace;
+      font-size: 0.85rem;
+      color: #333;
+      line-height: 1.5;
+      margin: 0;
+    }
+    pre.code .c { color: #9e9e9e; }
+    pre.code .t { color: #1a73e8; }
+    pre.code .s { color: #137333; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Ghost Font CAPTCHA</h1>
+      <p>No API keys. Drop-in widget. Works on any site.</p>
+    </header>
+
+    <div class="card">
+      <h2>Live demo</h2>
+      <p>Complete the CAPTCHA, then submit.</p>
+
+      <form id="demoForm" action="/demo/submit" method="post">
+        <div class="form-field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com"
+                 value="ada@example.com" autocomplete="off" />
+        </div>
+
+        <div class="widget-slot">
+          <div class="ghost-captcha" data-callback="onCaptchaSuccess"></div>
+        </div>
+
+        <button type="submit" class="submit" id="submitBtn" disabled>Complete the CAPTCHA first</button>
+      </form>
+
+      <div class="result" id="result"></div>
+    </div>
+
+    <div class="card">
+      <h2>Integration</h2>
+      <p>Two lines on the client, one call on the server.</p>
+
+      <h3 style="font-size:0.85rem;color:#555;margin:1rem 0 0.5rem;">1. Client side</h3>
+      <pre class="code"><span class="c">&lt;!-- Load the widget script once --&gt;</span>
+&lt;script src=<span class="s">"{{ public_base_url }}/api.js"</span> async defer&gt;&lt;/script&gt;
+
+&lt;!-- Add a div where you want the widget --&gt;
+&lt;div class=<span class="s">"ghost-captcha"</span>&gt;&lt;/div&gt;</pre>
+
+      <h3 style="font-size:0.85rem;color:#555;margin:1.25rem 0 0.5rem;">2. Server side</h3>
+      <pre class="code"><span class="c"># Verify the token server-to-server</span>
+POST {{ public_base_url }}/api/siteverify
+Content-Type: application/json
+
+{ <span class="t">"response"</span>: <span class="s">"&lt;ghost-captcha-response value&gt;"</span> }
+
+<span class="c"># 200 OK</span>
+{ <span class="t">"success"</span>: true, <span class="t">"challenge_ts"</span>: <span class="s">"…"</span>, <span class="t">"hostname"</span>: <span class="s">"…"</span> }</pre>
+    </div>
+  </div>
+
+  <script>
+    function onCaptchaSuccess(token) {
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = false;
+      btn.textContent = 'Submit';
+      showResult('success', 'CAPTCHA solved. Token: <code>' + escapeHtml(token.slice(0, 18)) + '…</code>');
+    }
+
+    document.getElementById('demoForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var tokenInput = this.querySelector('input[name="ghost-captcha-response"]');
+      var token = tokenInput ? tokenInput.value : '';
+      if (!token) {
+        showResult('error', 'No CAPTCHA token. Solve the CAPTCHA first.');
+        return;
+      }
+
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Verifying…';
+
+      try {
+        var res = await fetch('/demo/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: document.getElementById('email').value, 'ghost-captcha-response': token })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showResult('success', 'Server verified: <code>success=true</code>, hostname=<code>' + escapeHtml(data.hostname || '') + '</code>');
+        } else {
+          showResult('error', 'Verification failed: ' + escapeHtml((data['error-codes'] || []).join(', ') || data.message || ''));
+        }
+      } catch (err) {
+        showResult('error', 'Request failed.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+      }
+    });
+
+    function showResult(kind, html) {
+      var el = document.getElementById('result');
+      el.className = 'result ' + kind;
+      el.innerHTML = html;
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+      });
+    }
+  </script>
+</body>
+</html>
